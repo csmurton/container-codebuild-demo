@@ -1,4 +1,6 @@
 version: 0.2
+env:
+  shell: bash
 phases:
   install:
     # Demonstrating that particular common libraries and versions
@@ -31,7 +33,6 @@ phases:
       # If this is a merge to master, release
       - GITHUB_BRANCH=${CODEBUILD_WEBHOOK_HEAD_REF#refs/heads/*}
       - |-
-       #!/bin/bash
        if [ "${GITHUB_BRANCH}" == "master" ]; then
           docker tag demoapp/web:latest ${ECR_REPO_URL}:latest
           docker push ${ECR_REPO_URL}:latest
