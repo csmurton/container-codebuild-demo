@@ -32,6 +32,7 @@ phases:
       # Identify the target GitHub branch to decide if we need to release
       # If this is a merge to master, release
       - GITHUB_BRANCH=${CODEBUILD_WEBHOOK_HEAD_REF#refs/heads/*}
+      - echo "GITHUB_BRANCH is ${GITHUB_BRANCH:-unknown}"
       - |-
        if [ "${GITHUB_BRANCH}" == "master" ]; then
           docker tag demoapp/web:latest ${ECR_REPO_URL}:latest
