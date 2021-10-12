@@ -1,0 +1,29 @@
+version: 0.2
+phases:
+  install:
+    # Demonstrating that particular common libraries and versions
+    # can be made available to the execution environment easily.
+    # Not necessary in the context of this build.
+    runtime-versions:
+      php: 7.4
+      python: 3.x
+    commands:
+      # We'll log in to ECR early.
+      - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REPO_FQDN}
+  build:
+    on-failure: ABORT
+    commands:
+      # Build the Docker image
+      - docker build -t demoapp/web:latest web/
+  post_build:
+    commands:
+      # Tag and push the image to ECR
+      - docker tag demoapp/web:latest ${ECR_REPO_URL}:latest
+      - docker push ${ECR_REPO_URL}:latest
+      # We could wait for image scanning to complete, and then evaluate the results
+      # before proceeding.
+      #- aws ecr wait image-scan-complete --repository-name ${ECR_REPO_NAME} --image-id imageTag=latest
+      # Force a deployment of our ECS service
+      - aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME} --force-new-deployment
+      # Wait until our ECS service is stable
+      - aws ecs wait services-stable --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME}
