@@ -10,14 +10,18 @@ phases:
     commands:
       - echo "Login to AWS ECR docker registry"
       - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REPO_FQDN}
+  pre_build:
+    commands:
+      - echo "Dump available environment variables"
+      - env
   build:
     on-failure: ABORT
     commands:
-      # Build the Docker image
+      - echo "Build the Docker image"
       - docker build -t demoapp/web:latest web/
   post_build:
     commands:
-      # Do some testing
+      - echo "Test the Docker image runs and serves our page"
       - CONTAINER_ID=$(docker run --rm -d -p 8180:80 demoapp/web:latest)
       # If the below exits with a non-zero, the pipeline will fail
       - curl -s http://localhost:8180/ | grep 'Welcome to the demo' >/dev/null
@@ -27,6 +31,7 @@ phases:
       # If this is a merge to master, release
       - GITHUB_BRANCH=${CODEBUILD_WEBHOOK_HEAD_REF#refs/heads/*}
       - |-
+       #!/bin/bash
        if [ "${GITHUB_BRANCH}" == "master" ]; then
           docker tag demoapp/web:latest ${ECR_REPO_URL}:latest
           docker push ${ECR_REPO_URL}:latest
