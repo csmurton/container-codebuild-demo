@@ -8,7 +8,7 @@ phases:
       php: 7.4
       python: 3.x
     commands:
-      # We'll log in to ECR early.
+      - echo "Login to AWS ECR docker registry"
       - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REPO_FQDN}
   build:
     on-failure: ABORT
@@ -17,13 +17,24 @@ phases:
       - docker build -t demoapp/web:latest web/
   post_build:
     commands:
-      # Tag and push the image to ECR
-      - docker tag demoapp/web:latest ${ECR_REPO_URL}:latest
-      - docker push ${ECR_REPO_URL}:latest
-      # We could wait for image scanning to complete, and then evaluate the results
-      # before proceeding.
-      #- aws ecr wait image-scan-complete --repository-name ${ECR_REPO_NAME} --image-id imageTag=latest
-      # Force a deployment of our ECS service
-      - aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME} --force-new-deployment
-      # Wait until our ECS service is stable
-      - aws ecs wait services-stable --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME}
+      # Do some testing
+      - CONTAINER_ID=$(docker run --rm -d -p 8180:80 demoapp/web:latest)
+      # If the below exits with a non-zero, the pipeline will fail
+      - curl -s http://localhost:8180/ | grep 'Welcome to the demo' >/dev/null
+      - docker kill ${CONTAINER_ID}
+      # If we got here, the container runs locally
+      # Identify the target GitHub branch to decide if we need to release
+      # If this is a merge to master, release
+      - GITHUB_BRANCH=${CODEBUILD_WEBHOOK_HEAD_REF#refs/heads/*}
+      - |-
+       if [ "${GITHUB_BRANCH}" == "master" ]; then
+          docker tag demoapp/web:latest ${ECR_REPO_URL}:latest
+          docker push ${ECR_REPO_URL}:latest
+          # We could wait for image scanning to complete, and then evaluate the results
+          # before proceeding.
+          #aws ecr wait image-scan-complete --repository-name ${ECR_REPO_NAME} --image-id imageTag=latest
+          # Force a deployment of our ECS service
+          aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME} --force-new-deployment
+          # Wait until our ECS service is stable
+          aws ecs wait services-stable --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME}
+       fi
