@@ -40,8 +40,9 @@ phases:
           # We could wait for image scanning to complete, and then evaluate the results
           # before proceeding.
           #aws ecr wait image-scan-complete --repository-name ${ECR_REPO_NAME} --image-id imageTag=latest
-          # Force a deployment of our ECS service
+          echo "Forcing a deployment of our ECS service with the existing task definition (latest image)"
           aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME} --force-new-deployment
-          # Wait until our ECS service is stable
+          echo "Waiting for our ECS service to become stable"
           aws ecs wait services-stable --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME}
+          echo "Service deployed successfully"
        fi
